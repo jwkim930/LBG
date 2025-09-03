@@ -1,3 +1,4 @@
+from typing import Self
 import numpy as np
 
 
@@ -23,7 +24,7 @@ class ModMatrix:
         self._array: np.typing.NDArray[np.int64] = np.zeros(size, dtype=np.int64)
 
     @classmethod
-    def matrix(cls, content: list[list[int]] | np.typing.NDArray[np.int_], n: int) -> "ModMatrix":
+    def matrix(cls, content: list[list[int]] | np.typing.NDArray[np.int_], n: int) -> Self:
         """
         Create a modulo matrix object from a 2D list or NumPy array.
 
@@ -54,26 +55,26 @@ class ModMatrix:
         return result
 
     @property
-    def size(self):
+    def size(self) -> tuple[int, int]:
         """
         The dimension of the matrix, (row, col).
         """
         return self._size
 
     @property
-    def n(self):
+    def n(self) -> int:
         """
         The modulus of the modulo matrix.
         """
         return self._n
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self._array)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"matrix({str(self._array)}, {self._n})"
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> Self:
         if isinstance(other, int):
             return self.matrix(self._array * other, self._n)
         if isinstance(other, self.__class__):
@@ -86,7 +87,7 @@ class ModMatrix:
 
     __rmul__ = __mul__
 
-    def __add__(self, other):
+    def __add__(self, other) -> Self:
         if isinstance(other, self.__class__):
             if self._n != other._n:
                 raise ValueError("binary operation requires the same modulus")
@@ -94,11 +95,49 @@ class ModMatrix:
         else:
             return NotImplemented
 
-    def __neg__(self):
+    def __neg__(self) -> Self:
         return self.matrix(-self._array, self._n)
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> Self:
         if isinstance(other, self.__class__):
             return self + (-other)
+        else:
+            return NotImplemented
+
+
+class PrimeModMatrix(ModMatrix):
+    """
+    ModMatrix but with a prime modulus.
+    Supports division by an integer.
+    """
+    def __init__(self, size: tuple[int, int], n: int):
+        """
+        Initializes a modulo matrix object with a prime modulus.
+        The entries are all zero when initialized.
+
+        :param size: The size of the matrix, (row, col).
+        :param n: The modulus for this matrix. Must be at least 2 and a prime number.
+                  Must be less than 100 for implementation reasons.
+        """
+        primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97}
+        if n not in primes:
+            raise ValueError("non-prime modulus or modulus over 100")
+        super().__init__(size, n)
+
+    def __truediv__(self, other) -> Self:
+        if isinstance(other, int):
+            # invert other by extended Euclidean algorithm
+            a = other   # dividend
+            b = self._n   # divisor
+            x0, x1 = 1, 0   # last two coefficients for a
+            y0, y1 = 0, 1   # last two coefficient for b
+            while b > 0:
+                q, a, b = a // b, b, a % b
+                x0, x1 = x1, x0 - q * x1
+                y0, y1 = y1, y0 - q * y1
+            assert a == 1, f"Euclidean algorithm says other ({other}) is not coprime to n ({self.n}), which shouldn't happen"
+
+            # multiply by the inverse
+            return self * x0
         else:
             return NotImplemented
