@@ -5,12 +5,39 @@ import matplotlib.patches as patches
 from matplotlib.backend_bases import MouseEvent
 from modulo_matrix import PrimeModMatrix
 
+matrix_name = "random"
+n = 10
+
 color_lamp_on = '#FFFD55'
 color_lamp_off = '#383813'
 color_switch_idle = '#EB3324'
 color_switch_hover = '#992117'
 color_switch_pressed = '#6E1811'
-n = 10
+
+if matrix_name == "classic":
+    # switches adjacent lights
+    matrix = PrimeModMatrix((n, n), 2)
+    for i in range(n):
+        if i - 1 >= 0:
+            matrix[i - 1, i] = 1
+        if 0 <= i < n:
+            matrix[i, i] = 1
+        if i + 1 < n:
+            matrix[i + 1, i] = 1
+elif matrix_name == "cyclic":
+    # switches adjacent lights, two ends are considered connected
+    matrix = PrimeModMatrix((n, n), 2)
+    for i in range(n):
+        matrix[(i-1) % n, i] = 1
+        matrix[i, i] = 1
+        matrix[(i+1) % n, i] = 1
+else:
+    # random matrix
+    matrix = PrimeModMatrix.matrix(np.random.randint(0, 2, (n, n)), 2)
+    while matrix[n-1, n-1] == 0:
+        # matrix is singular, regenerate
+        matrix = PrimeModMatrix.matrix(np.random.randint(0, 2, (n, n)), 2)
+print(matrix)
 
 # horizontal display range is 0 to 10
 fig, ax = plt.subplots()
@@ -30,9 +57,6 @@ for i in range(n):
     buttons.append(patches.Rectangle((i * 10/n, -2), 10/n, -10/n, facecolor=color_switch_idle, edgecolor='k'))
     ax.add_patch(lamps[i])
     ax.add_patch(buttons[i])
-
-matrix = PrimeModMatrix.matrix(np.random.randint(0, 2, (n, n)), 2)
-print(matrix)
 
 def find_button(x: float, y: float) -> patches.Rectangle | None:
     if x < 0 or x > 10 or y < -2 - 10/n or y > -2:

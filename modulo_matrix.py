@@ -30,6 +30,7 @@ class ModMatrix:
 
         :param content: The array of integers containing the initial values.
                         Cannot be empty and must be rectangular.
+                        The values are copied, not reassigned.
         :param n: The modulus for this matrix. Must be at least 2.
         :return: The initialized ModMatrix object.
         """
@@ -177,3 +178,62 @@ class PrimeModMatrix(ModMatrix):
             return self * x0
         else:
             return NotImplemented
+
+    def row_reduced(self) -> Self:
+        """
+        Returns a copy of the matrix reduced to reduced row echelon form.
+
+        :return: The row-reduced matrix.
+        """
+        result = self.matrix(self._array, self._n)
+        # Gaussian elimination
+        def row_swap(i: int, j: int):
+            temp = np.copy(result._array[i])
+            result._array[i] = result._array[j]
+            result._array[j] = temp
+        def row_mult(i: int, x: int):
+            result._array[i] *= x
+            result._array[i] %= result._n
+        def row_add(add_to_index: int, add_index: int, x: int = 1):
+            result._array[add_to_index] += result._array[add_index] * x
+            result._array[add_to_index] %= result._n
+
+        m, n = result._size
+        row = 0
+        pivots = []   # track pivot positions
+        for col in range(n):
+            # find pivot row at or below 'row'
+            pivot = None
+            for r in range(row, m):
+                if result[r, col] != 0:
+                    pivot = r
+                    break
+
+            if pivot is None:
+                continue  # no pivot in this column
+
+            # bring pivot row up
+            if pivot != row:
+                row_swap(pivot, row)
+
+            # normalize pivot row
+            factor = (PrimeModMatrix.matrix([[1]], result._n) / result[row, col])[0, 0]
+            row_mult(row, factor)
+
+            # eliminate entries below pivot
+            for r in range(row + 1, m):
+                if result[r, col] != 0:
+                    factor = (-(PrimeModMatrix.matrix([[result[r, col]]], result._n) / result[row, col]))[0, 0]
+                    row_add(r, row, factor)
+            pivots.append((row, col))
+            row += 1
+            if row == m:
+                break
+
+        # backward elimination
+        for row, col in reversed(pivots):
+            for r in range(row):
+                if result[r, col] != 0:
+                    factor = -result[r, col] % result._n
+                    row_add(r, row, factor)
+        return result
