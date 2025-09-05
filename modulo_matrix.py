@@ -76,12 +76,18 @@ class ModMatrix:
 
     def __mul__(self, other) -> Self:
         if isinstance(other, int):
+            # scalar multiplication
             return self.matrix(self._array * other, self._n)
-        if isinstance(other, self.__class__):
+        # matrix multiplication below
+        # make sure the subclass constructor is used
+        if issubclass(self.__class__, other.__class__):
             if self._n != other._n:
                 raise ValueError("binary operation requires the same modulus")
-            # implement later if needed
-            return NotImplemented
+            return self.matrix(self._array @ other._array, self._n)
+        elif issubclass(other.__class__, self.__class__):
+            if self._n != other._n:
+                raise ValueError("binary operation requires the same modulus")
+            return other.matrix(self._array @ other._array, self._n)
         else:
             return NotImplemented
 
@@ -103,6 +109,36 @@ class ModMatrix:
             return self + (-other)
         else:
             return NotImplemented
+
+    def __getitem__(self, key: tuple[int, int]) -> int:
+        if len(key) != 2:
+            raise IndexError(f"{self.__class__.__name__} requires index with two integers")
+        return int(self._array[key])
+
+    def __setitem__(self, key: tuple[int, int], value: int):
+        if len(key) != 2:
+            raise IndexError(f"{self.__class__.__name__} requires index with two integers")
+        self._array[key] = value % self._n
+
+    def get_row(self, i: int):
+        """
+        Returns the row at the index.
+        The returned row is still a 2D array as a row.
+
+        :param i: The index of the row.
+        :return: The row matrix at the index.
+        """
+        return self.matrix(self._array[[i], :], self._n)
+
+    def get_column(self, i: int):
+        """
+        Returns the column at the index.
+        The returned column is still a 2D array as a column.
+
+        :param i: The index of the column.
+        :return: The column matrix at the index.
+        """
+        return self.matrix(self._array[:, [i]], self._n)
 
 
 class PrimeModMatrix(ModMatrix):

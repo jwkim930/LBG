@@ -2,7 +2,8 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from matplotlib.backend_bases import Event, MouseEvent
+from matplotlib.backend_bases import MouseEvent
+from modulo_matrix import PrimeModMatrix
 
 color_lamp_on = '#FFFD55'
 color_lamp_off = '#383813'
@@ -18,17 +19,20 @@ plt.axis('off')
 plt.xlim(-1, 11)
 plt.ylim(-1.2 * 10/n - 2, 1.5 * 10/n)
 
-lamp_states = np.random.randint(0, 2, n)   # 1 is on, 0 is off
-lamps = []
-buttons = []
+lamp_states = PrimeModMatrix.matrix(np.random.randint(0, 2, (n, 1)), 2)   # 1 is on, 0 is off
+lamps: list[patches.Rectangle] = []
+buttons: list[patches.Rectangle] = []
 hovered: patches.Rectangle = None   # saves the instance of the button being hovered over
 pressed: patches.Rectangle = None   # saves the instance of the button being pressed
 for i in range(n):
-    color_lamp = color_lamp_off if lamp_states[i] == 0 else color_lamp_on
+    color_lamp = color_lamp_off if lamp_states[i, 0] == 0 else color_lamp_on
     lamps.append(patches.Rectangle((i * 10/n, 0), 10/n, 1.3 * 10/n, facecolor=color_lamp, edgecolor='k'))
     buttons.append(patches.Rectangle((i * 10/n, -2), 10/n, -10/n, facecolor=color_switch_idle, edgecolor='k'))
     ax.add_patch(lamps[i])
     ax.add_patch(buttons[i])
+
+matrix = PrimeModMatrix.matrix(np.random.randint(0, 2, (n, n)), 2)
+print(matrix)
 
 def find_button(x: float, y: float) -> patches.Rectangle | None:
     if x < 0 or x > 10 or y < -2 - 10/n or y > -2:
@@ -58,13 +62,15 @@ def on_press(event: MouseEvent):
     fig.canvas.draw_idle()
 
 def on_release(event: MouseEvent):
-    global pressed
+    global pressed, lamp_states
     if pressed is None:
         return
     inside, _ = pressed.contains(event)
     if inside:
         pressed.set_facecolor(color_switch_hover)
-        print("Pressed", buttons.index(pressed))
+        lamp_states += matrix.get_column(buttons.index(pressed))
+        for j in range(n):
+            lamps[j].set_facecolor(color_lamp_on if lamp_states[j, 0] == 1 else color_lamp_off)
     pressed = None
     fig.canvas.draw_idle()
 
