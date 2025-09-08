@@ -5,7 +5,7 @@ import matplotlib.patches as patches
 from matplotlib.backend_bases import MouseEvent
 from modulo_matrix import PrimeModMatrix
 
-matrix_name = "random"
+matrix_name = "cyclic"
 n = 10
 
 color_lamp_on = '#FFFD55'
@@ -34,10 +34,9 @@ elif matrix_name == "cyclic":
 else:
     # random matrix
     matrix = PrimeModMatrix.matrix(np.random.randint(0, 2, (n, n)), 2)
-    while matrix[n-1, n-1] == 0:
+    while matrix.row_reduced()[n-1, n-1] == 0:
         # matrix is singular, regenerate
         matrix = PrimeModMatrix.matrix(np.random.randint(0, 2, (n, n)), 2)
-print(matrix)
 
 # horizontal display range is 0 to 10
 fig, ax = plt.subplots()
@@ -57,6 +56,9 @@ for i in range(n):
     buttons.append(patches.Rectangle((i * 10/n, -2), 10/n, -10/n, facecolor=color_switch_idle, edgecolor='k'))
     ax.add_patch(lamps[i])
     ax.add_patch(buttons[i])
+
+solution = matrix.hstack(lamp_states).row_reduced().get_column(n).transpose()
+print(solution)
 
 def find_button(x: float, y: float) -> patches.Rectangle | None:
     if x < 0 or x > 10 or y < -2 - 10/n or y > -2:
@@ -79,6 +81,8 @@ def on_move(event: MouseEvent):
 
 def on_press(event: MouseEvent):
     global pressed
+    if event.inaxes != ax:
+        return
     b = find_button(event.xdata, event.ydata)
     if isinstance(b, patches.Rectangle):
         pressed = b
@@ -91,10 +95,14 @@ def on_release(event: MouseEvent):
         return
     inside, _ = pressed.contains(event)
     if inside:
+        button_i = buttons.index(pressed)
         pressed.set_facecolor(color_switch_hover)
-        lamp_states += matrix.get_column(buttons.index(pressed))
+        lamp_states += matrix.get_column(button_i)
         for j in range(n):
             lamps[j].set_facecolor(color_lamp_on if lamp_states[j, 0] == 1 else color_lamp_off)
+        # update the solution matrix
+        solution[0, button_i] += 1
+        print(solution)
     pressed = None
     fig.canvas.draw_idle()
 

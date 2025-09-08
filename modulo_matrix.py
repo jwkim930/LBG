@@ -141,6 +141,29 @@ class ModMatrix:
         """
         return self.matrix(self._array[:, [i]], self._n)
 
+    def hstack(self, other: "ModMatrix") -> Self:
+        """
+        Returns a matrix created by concatenating two matrices horizontally.
+        :param other: The matrix to come to the right of this matrix.
+                      Must have the same modulus and the same number of rows.
+        :return: The concatenated matrix.
+        """
+        if self._n != other._n:
+            raise ValueError("matrix moduli do not agree")
+        if self._size[0] != other._size[0]:
+            raise ValueError("the matrices have different number of rows")
+        # make sure to use the subclass constructor
+        if issubclass(self.__class__, other.__class__):
+            return self.__class__.matrix(np.hstack((self._array, other._array)), self._n)
+        else:
+            return other.__class__.matrix(np.hstack((self._array, other._array)), self._n)
+
+    def transpose(self) -> Self:
+        """
+        Returns a copy of the matrix that is transposed with the same modulus.
+        :return: The transposed matrix.
+        """
+        return self.__class__.matrix(self._array.transpose(), self._n)
 
 class PrimeModMatrix(ModMatrix):
     """
