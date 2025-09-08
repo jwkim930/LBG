@@ -5,7 +5,7 @@ import matplotlib.patches as patches
 from matplotlib.backend_bases import MouseEvent
 from modulo_matrix import PrimeModMatrix
 
-matrix_name = "cyclic"
+matrix_name = "classic"
 n = 10
 
 color_lamp_on = '#FFFD55'
@@ -14,6 +14,7 @@ color_switch_idle = '#EB3324'
 color_switch_hover = '#992117'
 color_switch_pressed = '#6E1811'
 
+singular = False
 if matrix_name == "classic":
     # switches adjacent lights
     matrix = PrimeModMatrix((n, n), 2)
@@ -24,6 +25,8 @@ if matrix_name == "classic":
             matrix[i, i] = 1
         if i + 1 < n:
             matrix[i + 1, i] = 1
+    if matrix.row_reduced()[n-1, n-1] == 0:
+        singular = True
 elif matrix_name == "cyclic":
     # switches adjacent lights, two ends are considered connected
     matrix = PrimeModMatrix((n, n), 2)
@@ -31,6 +34,8 @@ elif matrix_name == "cyclic":
         matrix[(i-1) % n, i] = 1
         matrix[i, i] = 1
         matrix[(i+1) % n, i] = 1
+    if matrix.row_reduced()[n-1, n-1] == 0:
+        singular = True
 else:
     # random matrix
     matrix = PrimeModMatrix.matrix(np.random.randint(0, 2, (n, n)), 2)
@@ -57,8 +62,11 @@ for i in range(n):
     ax.add_patch(lamps[i])
     ax.add_patch(buttons[i])
 
-solution = matrix.hstack(lamp_states).row_reduced().get_column(n).transpose()
-print(solution)
+if not singular:
+    solution = matrix.hstack(lamp_states).row_reduced().get_column(n).transpose()
+    print(solution)
+else:
+    print("WARNING: non-singular matrix used; there's either no solution or multiple solutions")
 
 def find_button(x: float, y: float) -> patches.Rectangle | None:
     if x < 0 or x > 10 or y < -2 - 10/n or y > -2:
@@ -101,8 +109,9 @@ def on_release(event: MouseEvent):
         for j in range(n):
             lamps[j].set_facecolor(color_lamp_on if lamp_states[j, 0] == 1 else color_lamp_off)
         # update the solution matrix
-        solution[0, button_i] += 1
-        print(solution)
+        if not singular:
+            solution[0, button_i] += 1
+            print(solution)
     pressed = None
     fig.canvas.draw_idle()
 

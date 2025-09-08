@@ -140,7 +140,7 @@ class ModMatrix:
             raise IndexError(f"{self.__class__.__name__} requires index with two integers")
         self._array[key] = value % self._n
 
-    def get_row(self, i: int):
+    def get_row(self, i: int) -> Self:
         """
         Returns the row at the index.
         The returned row is still a 2D array as a row.
@@ -167,7 +167,7 @@ class ModMatrix:
             raise ValueError(f"new_row uses modulus {new_row._n} but self uses {self._n}")
         self._array[i] = new_row._array[0]
 
-    def get_column(self, i: int):
+    def get_column(self, i: int) -> Self:
         """
         Returns the column at the index.
         The returned column is still a 2D array as a column.
