@@ -2,6 +2,25 @@ from typing import Self
 import numpy as np
 
 
+def modulo_inverse(n: int, p: int) -> int:
+    """
+    :param n: The integer to be inverted.
+    :param p: The modulus to be used. Must be relatively prime to n.
+    :return: The multiplicative inverse of n in integer modulo p.
+    """
+    # invert by extended Euclidean algorithm
+    a = n  # dividend
+    b = p  # divisor
+    x0, x1 = 1, 0  # last two coefficients for a
+    y0, y1 = 0, 1  # last two coefficient for b
+    while b > 0:
+        q, a, b = a // b, b, a % b
+        x0, x1 = x1, x0 - q * x1
+        y0, y1 = y1, y0 - q * y1
+    assert a == 1, f"Euclidean algorithm says gcd({n}, {p}) = {a}"
+    return x0 % p
+
+
 class ModMatrix:
     """
     A matrix where entries are from the ring Z/nZ.
@@ -131,6 +150,23 @@ class ModMatrix:
         """
         return self.matrix(self._array[[i], :], self._n)
 
+    def set_row(self, i: int, new_row: "ModMatrix"):
+        """
+        Replaces a row with a new row.
+
+        :param i: The index of the row to be replaced.
+        :param new_row: The row matrix to be used for replacement.
+                        This must have one row and the same number of columns as self.
+                        The modulus must be equal to the modulus of self.
+        """
+        if new_row._size[0] != 1:
+            raise ValueError("new_row is not a row matrix, new_row:\n" + str(new_row))
+        if new_row._size[1] != self._size[1]:
+            raise ValueError(f"new_row has {new_row._size[1]} columns but self has {self._size[1]}. new_row:\n" + str(new_row))
+        if new_row._n != self._n:
+            raise ValueError(f"new_row uses modulus {new_row._n} but self uses {self._n}")
+        self._array[i] = new_row._array[0]
+
     def get_column(self, i: int):
         """
         Returns the column at the index.
@@ -140,6 +176,23 @@ class ModMatrix:
         :return: The column matrix at the index.
         """
         return self.matrix(self._array[:, [i]], self._n)
+
+    def set_column(self, i: int, new_column: "ModMatrix"):
+        """
+        Replaces a column with a new column.
+
+        :param i: The index of the column to be replaced.
+        :param new_column: The column matrix to be used for replacement.
+                           This must have one column and the same number of rows as self.
+                           The modulus must be equal to the modulus of self.
+        """
+        if new_column._size[1] != 1:
+            raise ValueError("new_column is not a column matrix, new_column:\n" + str(new_column))
+        if new_column._size[0] != self._size[0]:
+            raise ValueError(f"new_column has {new_column._size[1]} columns but self has {self._size[1]}. new_column:\n" + str(new_column))
+        if new_column._n != self._n:
+            raise ValueError(f"new_column uses modulus {new_column._n} but self uses {self._n}")
+        self._array[:, i] = new_column._array[:, 0]
 
     def hstack(self, other: "ModMatrix") -> Self:
         """
@@ -186,19 +239,8 @@ class PrimeModMatrix(ModMatrix):
 
     def __truediv__(self, other) -> Self:
         if isinstance(other, int):
-            # invert other by extended Euclidean algorithm
-            a = other   # dividend
-            b = self._n   # divisor
-            x0, x1 = 1, 0   # last two coefficients for a
-            y0, y1 = 0, 1   # last two coefficient for b
-            while b > 0:
-                q, a, b = a // b, b, a % b
-                x0, x1 = x1, x0 - q * x1
-                y0, y1 = y1, y0 - q * y1
-            assert a == 1, f"Euclidean algorithm says other ({other}) is not coprime to n ({self.n}), which shouldn't happen"
-
             # multiply by the inverse
-            return self * x0
+            return self * modulo_inverse(other, self._n)
         else:
             return NotImplemented
 
@@ -211,15 +253,13 @@ class PrimeModMatrix(ModMatrix):
         result = self.matrix(self._array, self._n)
         # Gaussian elimination
         def row_swap(i: int, j: int):
-            temp = np.copy(result._array[i])
-            result._array[i] = result._array[j]
-            result._array[j] = temp
+            temp = result.get_row(i)
+            result.set_row(i, result.get_row(j))
+            result.set_row(j, temp)
         def row_mult(i: int, x: int):
-            result._array[i] *= x
-            result._array[i] %= result._n
+            result.set_row(i, result.get_row(i) * x)
         def row_add(add_to_index: int, add_index: int, x: int = 1):
-            result._array[add_to_index] += result._array[add_index] * x
-            result._array[add_to_index] %= result._n
+            result.set_row(add_to_index, result.get_row(add_index) * x + result.get_row(add_to_index))
 
         m, n = result._size
         row = 0
@@ -240,14 +280,13 @@ class PrimeModMatrix(ModMatrix):
                 row_swap(pivot, row)
 
             # normalize pivot row
-            factor = (PrimeModMatrix.matrix([[1]], result._n) / result[row, col])[0, 0]
-            row_mult(row, factor)
+            row_mult(row, modulo_inverse(result[row, col], result._n))
 
             # eliminate entries below pivot
             for r in range(row + 1, m):
                 if result[r, col] != 0:
-                    factor = (-(PrimeModMatrix.matrix([[result[r, col]]], result._n) / result[row, col]))[0, 0]
-                    row_add(r, row, factor)
+                    factor = result[r, col] * modulo_inverse(result[row, col], result._n)
+                    row_add(r, row, -factor)
             pivots.append((row, col))
             row += 1
             if row == m:
@@ -257,6 +296,5 @@ class PrimeModMatrix(ModMatrix):
         for row, col in reversed(pivots):
             for r in range(row):
                 if result[r, col] != 0:
-                    factor = -result[r, col] % result._n
-                    row_add(r, row, factor)
+                    row_add(r, row, -result[r, col])
         return result
